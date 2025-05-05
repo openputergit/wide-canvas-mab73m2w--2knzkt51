@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Virtual Trial Room</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/qrcode-generator@1.4.4/qrcode.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Poppins', sans-serif;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+        .overlay-container {
+            position: relative;
+            width: fit-content;
+            margin: auto;
+        }
+        .cloth-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            transform-origin: center;
+        }
+        .loader {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #ffffff;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .showcase {
+            background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0));
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.18);
+            padding: 20px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500">
+    <div class="container mx-auto px-4 py-8">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-white mb-2">Smart Virtual Trial Room</h1>
+            <p class="text-white text-opacity-90">Try on clothes virtually and explore our collection</p>
+        </div>
+
+        <div class="glass rounded-xl p-6 max-w-4xl mx-auto">
+            <!-- Step Progress -->
+            <div class="flex justify-between mb-8">
+                <div id="step1" class="flex flex-col items-center">
+                    <div class="w-10 h-10 rounded-full bg-white text-purple-600 flex items-center justify-center font-bold">1</div>
+                    <span class="text-white mt-2">Upload Photo</span>
+                </div>
+                <div id="step2" class="flex flex-col items-center opacity-50">
+                    <div class="w-10 h-10 rounded-full bg-white text-purple-600 flex items-center justify-center font-bold">2</div>
+                    <span class="text-white mt-2">Select Clothes</span>
+                </div>
+                <div id="step3" class="flex flex-col items-center opacity-50">
+                    <div class="w-10 h-10 rounded-full bg-white text-purple-600 flex items-center justify-center font-bold">3</div>
+                    <span class="text-white mt-2">Try & Adjust</span>
+                </div>
+            </div>
+
+            <!-- Model Upload Section -->
+            <div class="mb-8 text-center">
+                <div class="flex justify-center gap-4 mb-4">
+                    <button onclick="openCamera()" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-6 py-3 rounded-lg transition-all duration-300">
+                        <i class="bi bi-camera-fill mr-2"></i>Take Photo
+                    </button>
+                    <input type="file" id="modelUpload" accept="image/*" class="hidden" onchange="handleModelUpload(event)">
+                    <label for="modelUpload" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-6 py-3 rounded-lg cursor-pointer transition-all duration-300">
+                        <i class="bi bi-upload mr-2"></i>Upload Photo
+                    </label>
+                </div>
+                <div class="overlay-container">
+                    <video id="camera" class="rounded-lg hidden max-w-full h-auto" style="max-height: 60vh;"></video>
+                    <canvas id="canvas" class="hidden"></canvas>
+                    <img id="modelPreview" class="rounded-lg hidden max-w-full h-auto" style="max-height: 60vh;">
+                    <img id="clothOverlay" class="cloth-overlay hidden">
+                </div>
+            </div>
+
+            <!-- Clothing Selection -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div>
+                    <label class="block text-white mb-2">Category</label>
+                    <select id="category" class="w-full p-3 rounded-lg glass text-white" onchange="loadClothingOptions()">
+                        <option value="">Select Category</option>
+                        <option value="tops">Tops</option>
+                        <option value="bottoms">Bottoms</option>
+                        <option value="dresses">Dresses</option>
+                        <option value="outerwear">Outerwear</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-white mb-2">Size</label>
+                    <select id="size" class="w-full p-3 rounded-lg glass text-white">
+                        <option value="">Select Size</option>
+                        <option value="xs">XS</option>
+                        <option value="s">S</option>
+                        <option value="m">M</option>
+                        <option value="l">L</option>
+                        <option value="xl">XL</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-white mb-2">Color</label>
+                    <div class="flex gap-2">
+                        <input type="color" id="color" class="h-12 w-24 rounded cursor-pointer">
+                        <button onclick="applyColor()" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 rounded">
+                            Apply Color
+                        </button>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-white mb-2">Fit Adjustment</label>
+                    <input type="range" id="fitAdjustment" min="0.5" max="1.5" step="0.1" value="1" 
+                           class="w-full" onchange="adjustFit()">
+                </div>
+            </div>
+
+            <!-- Position Controls -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <button onclick="moveCloth('left')" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white p-3 rounded-lg">
+                    <i class="bi bi-arrow-left"></i>
+                </button>
+                <button onclick="moveCloth('right')" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white p-3 rounded-lg">
+                    <i class="bi bi-arrow-right"></i>
+                </button>
+                <button onclick="moveCloth('up')" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white p-3 rounded-lg">
+                    <i class="bi bi-arrow-up"></i>
+                </button>
+                <button onclick="moveCloth('down')" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white p-3 rounded-lg">
+                    <i class="bi bi-arrow-down"></i>
+                </button>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex justify-center gap-4">
+                <button onclick="saveOutfit()" class="bg-gradient-to-r from-purple-500 to-pink-500 hover:opacity-90 text-white px-8 py-3 rounded-lg transition-all duration-300">
+                    <i class="bi bi-save mr-2"></i>Save Outfit
+                </button>
+                <button onclick="generateQR()" class="bg-gradient-to-r from-blue-500 to-purple-500 hover:opacity-90 text-white px-8 py-3 rounded-lg transition-all duration-300">
+                    <i class="bi bi-qr-code mr-2"></i>Generate QR
+                </button>
+            </div>
+
+            <!-- QR Code Display -->
+            <div id="qrcode" class="mt-8 flex justify-center"></div>
+
+            <!-- Virtual Showroom -->
+            <div class="showcase mt-8">
+                <h3 class="text-xl font-semibold text-white mb-4">Virtual Showroom</h3>
+                <div id="clothingGrid" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <!-- Clothing items will be dynamically added here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPosition = { x: 0, y: 0 };
+        let currentScale = 1;
+
+        // Initialize camera handling
+        function openCamera() {
+            const video = document.getElementById('camera');
+            if (navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ video: true })
+                    .then(function(stream) {
+                        video.srcObject = stream;
+                        video.classList.remove('hidden');
+                        document.getElementById('modelPreview').classList.add('hidden');
+                    })
+                    .catch(function(error) {
+                        console.log("Camera error: ", error);
+                        alert("Camera access denied or error occurred");
+                    });
+            }
+        }
+
+        // Handle model upload
+        function handleModelUpload(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const img = document.getElementById('modelPreview');
+                img.src = e.target.result;
+                img.classList.remove('hidden');
+                document.getElementById('camera').classList.add('hidden');
+                
+                // Update progress
+                document.getElementById('step1').classList.add('opacity-50');
+                document.getElementById('step2').classList.remove('opacity-50');
+            }
+            
+            if (file) {
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Clothing management
+        function loadClothingOptions() {
+            const category = document.getElementById('category').value;
+            const clothingGrid = document.getElementById('clothingGrid');
+            clothingGrid.innerHTML = ''; // Clear existing items
+
+            // Simulate loading clothing items
+            for (let i = 1; i <= 8; i++) {
+                const item = document.createElement('div');
+                item.className = 'bg-white bg-opacity-10 rounded-lg p-4 cursor-pointer hover:bg-opacity-20 transition-all';
+                item.innerHTML = `
+                    <img src="https://source.unsplash.com/random/150x150?${category},${i}" class="w-full h-40 object-cover rounded-lg mb-2">
+                    <p class="text-white text-sm">Item ${i}</p>
+                    <p class="text-white text-opacity-70 text-xs">$${Math.floor(Math.random() * 100 + 20)}</p>
+                `;
+                item.onclick = () => tryOnCloth(item.querySelector('img').src);
+                clothingGrid.appendChild(item);
+            }
+        }
+
+        // Try on cloth
+        function tryOnCloth(clothSrc) {
+            const overlay = document.getElementById('clothOverlay');
+            overlay.src = clothSrc;
+            overlay.classList.remove('hidden');
+            
+            // Update progress
+            document.getElementById('step2').classList.add('opacity-50');
+            document.getElementById('step3').classList.remove('opacity-50');
+        }
+
+        // Position adjustment
+        function moveCloth(direction) {
+            const overlay = document.getElementById('clothOverlay');
+            const step = 10;
+            
+            switch(direction) {
+                case 'left':
+                    currentPosition.x -= step;
+                    break;
+                case 'right':
+                    currentPosition.x += step;
+                    break;
+                case 'up':
+                    currentPosition.y -= step;
+                    break;
+                case 'down':
+                    currentPosition.y += step;
+                    break;
+            }
+            
+            overlay.style.transform = `translate(${currentPosition.x}px, ${currentPosition.y}px) scale(${currentScale})`;
+        }
+
+        // Fit adjustment
+        function adjustFit() {
+            const value = document.getElementById('fitAdjustment').value;
+            currentScale = value;
+            document.getElementById('clothOverlay').style.transform = 
+                `translate(${currentPosition.x}px, ${currentPosition.y}px) scale(${currentScale})`;
+        }
+
+        // Color application
+        function applyColor() {
+            const color = document.getElementById('color').value;
+            const overlay = document.getElementById('clothOverlay');
+            overlay.style.filter = `opacity(0.9) drop-shadow(0 0 0 ${color})`;
+        }
+
+        // Save outfit
+        function saveOutfit() {
+            // Implement saving functionality
+            alert('Outfit saved successfully!');
+        }
+
+        // Generate QR code
+        function generateQR() {
+            const qr = qrcode(0, 'M');
+            const data = {
+                modelImage: document.getElementById('modelPreview').src,
+                clothImage: document.getElementById('clothOverlay').src,
+                position: currentPosition,
+                scale: currentScale,
+                color: document.getElementById('color').value,
+                size: document.getElementById('size').value
+            };
+            
+            qr.addData(JSON.stringify(data));
+            qr.make();
+            
+            document.getElementById('qrcode').innerHTML = qr.createImgTag(5);
+        }
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
